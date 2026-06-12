@@ -76,6 +76,7 @@ test('connect timeout throws ApiRequestException quickly with curl error details
     }
 
     $elapsedMs = (microtime(true) - $startedAt) * 1000;
+    $responseBody = $request->getResponseBody();
 
     expect($exception)
         ->toBeInstanceOf(ApiRequestException::class)
@@ -85,7 +86,12 @@ test('connect timeout throws ApiRequestException quickly with curl error details
         ->toBeGreaterThan(strlen('cURL error:'))
         ->and($request->getResponseCode())
         ->toBe(0)
-        ->and($request->getResponseBody()->msgs[0] ?? null)
+        ->and(isset($responseBody->msgs))
+        ->toBeTrue()
+        ->and($responseBody->msgs)
+        ->toBeArray()
+        ->toHaveCount(1)
+        ->and($responseBody->msgs[0])
         ->toStartWith('cURL error:')
         ->and($elapsedMs)
         ->toBeLessThan(1000);
