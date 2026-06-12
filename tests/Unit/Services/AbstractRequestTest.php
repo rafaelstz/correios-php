@@ -78,5 +78,5 @@ test('connect timeout throws ApiRequestException quickly with curl error details
         ->and($request->getResponseBody()->msgs[0] ?? null)
         ->toStartWith('cURL error:')
         ->and($elapsedMs)
-        ->toBeLessThan(5000);
+        ->toBeLessThan(1000);
 });
