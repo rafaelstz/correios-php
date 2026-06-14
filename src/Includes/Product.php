@@ -2,33 +2,17 @@
 
 namespace Correios\Includes;
 
-class Product
+readonly class Product
 {
-    private float $weight;
-    private float $width;
-    private float $height;
-    private float $length;
-    private float $diameter;
-    private float $cubicWeight;
-    private int $objectType;
-
     public function __construct(
-        float $weight,
-        float $width = 0,
-        float $height = 0,
-        float $length = 0,
-        float $diameter = 0,
-        float $cubicWeight = 0,
-        int   $objectType = 1
-    ) {
-        $this->weight      = $weight;
-        $this->width       = $width;
-        $this->height      = $height;
-        $this->length      = $length;
-        $this->diameter    = $diameter;
-        $this->cubicWeight = $cubicWeight;
-        $this->objectType  = $objectType;
-    }
+        private float $weight = 0,
+        private float $width = 0,
+        private float $height = 0,
+        private float $length = 0,
+        private float $diameter = 0,
+        private float $cubicWeight = 0,
+        private int $objectType = 1,
+    ) {}
 
     public function getWeight(): float
     {

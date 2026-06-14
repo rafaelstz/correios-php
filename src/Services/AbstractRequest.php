@@ -14,9 +14,9 @@ abstract class AbstractRequest
     protected array $errors     = [];
     protected int $responseCode = 0;
     protected object $responseBody;
-    private string $method;
+    private readonly string $method;
     private string $endpoint;
-    protected Authentication $authentication;
+    protected ?Authentication $authentication = null;
 
     private ?\CurlHandle $curlHandle = null;
 
@@ -72,11 +72,7 @@ abstract class AbstractRequest
 
     protected function getRequestUrl(string $endpoint): string
     {
-        $isTestMode = $this->getEnvironment() === 'sandbox';
-
-        if (isset($this->authentication)) {
-            $isTestMode = $this->authentication->getEnvironment() === 'sandbox';
-        }
+        $isTestMode = $this->authentication?->getEnvironment() === 'sandbox';
 
         return settings()->getEnvironmentUrl($isTestMode) . "/$endpoint";
     }
