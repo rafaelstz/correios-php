@@ -15,6 +15,8 @@ abstract class AbstractRequest
     protected int $responseCode = 0;
     protected object $responseBody;
     private readonly string $method;
+    protected int $connectTimeoutMs = 5000;
+    protected int $requestTimeoutMs = 30000;
     private string $endpoint;
     protected ?Authentication $authentication = null;
 
@@ -45,13 +47,24 @@ abstract class AbstractRequest
         curl_setopt($this->curlHandle, CURLOPT_URL, $url);
         curl_setopt($this->curlHandle, CURLOPT_HTTPHEADER, $this->getHeaders());
         curl_setopt($this->curlHandle, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($this->curlHandle, CURLOPT_CONNECTTIMEOUT_MS, $this->connectTimeoutMs);
+        curl_setopt($this->curlHandle, CURLOPT_TIMEOUT_MS, $this->requestTimeoutMs);
 
         if ($this->method === 'POST') {
             curl_setopt($this->curlHandle, CURLOPT_POST, true);
             curl_setopt($this->curlHandle, CURLOPT_POSTFIELDS, json_encode($this->body));
         }
 
-        $response = json_decode(curl_exec($this->curlHandle), false);
+        $response = curl_exec($this->curlHandle);
+
+        if ($response === false) {
+            $this->responseCode = 0;
+            $this->responseBody = (object) ['msgs' => ['cURL error: ' . curl_error($this->curlHandle)]];
+
+            throw new ApiRequestException($this->responseBody);
+        }
+
+        $response = json_decode($response, false);
 
         $code = curl_getinfo($this->curlHandle, CURLINFO_HTTP_CODE);
 
@@ -126,6 +139,12 @@ abstract class AbstractRequest
     protected function setEndpoint(string $endpoint): void
     {
         $this->endpoint = $endpoint;
+    }
+
+    public function setRequestTimeouts(int $connectMs, int $totalMs): void
+    {
+        $this->connectTimeoutMs = $connectMs;
+        $this->requestTimeoutMs = $totalMs;
     }
 
     public function getErrors(): array
