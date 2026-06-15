@@ -36,24 +36,13 @@ abstract class AbstractRequest
 
     protected function sendRequest(): void
     {
-        $url = $this->getRequestUrl($this->endpoint);
-
         if (!isset($this->curlHandle)) {
             $this->curlHandle = curl_init();
         }
 
         curl_reset($this->curlHandle);
 
-        curl_setopt($this->curlHandle, CURLOPT_URL, $url);
-        curl_setopt($this->curlHandle, CURLOPT_HTTPHEADER, $this->getHeaders());
-        curl_setopt($this->curlHandle, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($this->curlHandle, CURLOPT_CONNECTTIMEOUT_MS, $this->connectTimeoutMs);
-        curl_setopt($this->curlHandle, CURLOPT_TIMEOUT_MS, $this->requestTimeoutMs);
-
-        if ($this->method === 'POST') {
-            curl_setopt($this->curlHandle, CURLOPT_POST, true);
-            curl_setopt($this->curlHandle, CURLOPT_POSTFIELDS, json_encode($this->body));
-        }
+        $this->applyCurlOptions($this->curlHandle);
 
         $response = curl_exec($this->curlHandle);
 
@@ -76,6 +65,41 @@ abstract class AbstractRequest
         if ($code >= 400) {
             throw new ApiRequestException($data);
         }
+    }
+
+    /**
+     * Apply the configured method, URL, headers, timeouts and body to a cURL
+     * handle. Shared by the synchronous sendRequest() and the concurrent
+     * prepareHandle() paths so both speak to Correios identically.
+     */
+    private function applyCurlOptions(\CurlHandle $handle): void
+    {
+        curl_setopt($handle, CURLOPT_URL, $this->getRequestUrl($this->endpoint));
+        curl_setopt($handle, CURLOPT_HTTPHEADER, $this->getHeaders());
+        curl_setopt($handle, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($handle, CURLOPT_CONNECTTIMEOUT_MS, $this->connectTimeoutMs);
+        curl_setopt($handle, CURLOPT_TIMEOUT_MS, $this->requestTimeoutMs);
+
+        if ($this->method === 'POST') {
+            curl_setopt($handle, CURLOPT_POST, true);
+            curl_setopt($handle, CURLOPT_POSTFIELDS, json_encode($this->body));
+        }
+    }
+
+    /**
+     * Build a fresh, fully configured cURL handle for concurrent execution
+     * (see Batch). The current body is baked into the handle here, so a single
+     * service instance can prepare many handles, each capturing its own payload.
+     * The keep-alive handle used by sendRequest() is intentionally untouched —
+     * concurrent requests require independent handles.
+     */
+    public function prepareHandle(): \CurlHandle
+    {
+        $handle = curl_init();
+
+        $this->applyCurlOptions($handle);
+
+        return $handle;
     }
 
     protected function setAuthentication(Authentication $authentication): void

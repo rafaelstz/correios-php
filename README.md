@@ -123,6 +123,70 @@ $correios->date()->get(
 $response = $correios->address()->get(cep: '05336010');
 ```
 
+### Multirequisição concorrente (Concurrent batch)
+
+Execute requisições independentes de preço e prazo em paralelo (via `curl_multi`), com timeouts configuráveis e resultados isolados por chave - Run independent price and date requests in parallel (via `curl_multi`), with configurable timeouts and per-key isolated results.
+
+```PHP
+$results = $correios->batch(
+        concurrency: 8,         // máximo de requisições simultâneas - max simultaneous requests
+        connectTimeoutMs: 1000, // timeout de conexão por requisição - per-request connect timeout
+        requestTimeoutMs: 4000, // timeout total por requisição - per-request total timeout
+        totalTimeoutMs: 4500,   // opcional: limite global do lote (0 = sem limite) - optional global batch budget (0 = none)
+    )
+    ->price(
+        key: 'pac',
+        serviceCodes: ['04162'],
+        products: [['weight' => 300]],
+        originCep: '71930000',
+        destinyCep: '05336010',
+    )
+    ->date(
+        key: 'pac-prazo',
+        serviceCodes: ['04162'],
+        originCep: '71930000',
+        destinyCep: '05336010',
+    )
+    ->execute();
+```
+
+O `execute()` retorna um array indexado pela `key` de cada requisição - `execute()` returns an array keyed by each request's `key`:
+
+```PHP
+foreach ($results as $key => $result) {
+    if ($result['success']) {
+        $body = $result['data'];  // stdClass
+        $code = $result['code'];  // int
+    } else {
+        $error = $result['error']; // mensagem da API ou erro de cURL/timeout
+    }
+}
+// $result => ['key' => string|int, 'success' => bool, 'code' => int, 'data' => stdClass, 'error' => ?string]
+```
+
+Requisições lentas ou que falham ficam isoladas na sua própria entrada e não derrubam o lote inteiro. O lote apenas busca os dados — repetição, cache e fallback ficam a cargo de quem chama - Slow or failing requests are isolated to their own entry and never abort the batch. The batch only fetches; retries, caching, and fallback are the caller's responsibility.
+
+#### Payloads personalizados (Custom payloads)
+
+Para montar o corpo da requisição manualmente, prepare a requisição e adicione-a ao lote com `add()` - To build the request body yourself, prepare the request and add it to the batch with `add()`:
+
+```PHP
+use Correios\Services\Batch\PreparedRequest;
+
+$prepared = $correios->price()->prepare(
+    key: 'sedex',
+    serviceCodes: ['04014'],
+    products: [['weight' => 300]],
+    originCep: '71930000',
+    destinyCep: '05336010',
+);
+
+$results = $correios->batch()
+    ->add($prepared)
+    ->add(new PreparedRequest('custom', $myConfiguredCurlHandle))
+    ->execute();
+```
+
 <br/>
 
 <h2 id="response">Respostas API (API Response)</h2>

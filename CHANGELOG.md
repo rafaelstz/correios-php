@@ -3,6 +3,14 @@
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [Unreleased]
+
+### Added
+- Bounded concurrent multirequest support via the new `Correios::batch()` API. Independent price/date requests run in parallel through `curl_multi` with configurable connect, per-request, and global (batch wall-clock) timeouts, returning keyed per-request results with partial successes and structured failures (`['key', 'success', 'code', 'data', 'error']`).
+- `Batch::price()` / `Batch::date()` typed helpers, plus a generic `Batch::add(PreparedRequest)` for callers that build their own payloads.
+- `Price::prepare()` / `Date::prepare()` build a request without sending it, isolating validation failures (invalid/duplicate CEP, missing weight) per request instead of aborting the batch.
+- `AbstractRequest::prepareHandle()` exposes a configured cURL handle for concurrent execution. Existing synchronous `get()` / `sendRequest()` behavior is unchanged.
+
 ## [1.0.4] - 2024-10-24
 
 ### Fixed

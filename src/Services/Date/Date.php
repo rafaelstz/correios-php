@@ -3,7 +3,10 @@
 namespace Correios\Services\Date;
 
 use Correios\Exceptions\ApiRequestException;
+use Correios\Exceptions\InvalidCepException;
+use Correios\Exceptions\SameCepException;
 use Correios\Includes\Traits\CepHandler;
+use Correios\Services\Batch\PreparedRequest;
 use Correios\Services\{
     AbstractRequest,
     Authorization\Authentication
@@ -62,6 +65,25 @@ class Date extends AbstractRequest
         } catch (ApiRequestException $e) {
             $this->errors[$e->getCode()] = $e->getMessage();
             return [];
+        }
+    }
+
+    /**
+     * Build a delivery-time request ready for concurrent execution via Batch,
+     * instead of sending it immediately. Validation failures are isolated to
+     * the returned request (no exception) so one bad input never aborts a batch.
+     */
+    public function prepare(string|int $key, array $serviceCodes, string $originCep, string $destinyCep, array $fields = []): PreparedRequest
+    {
+        try {
+            $this->validateCep($originCep, $destinyCep);
+
+            $this->buildBody($serviceCodes, $fields);
+
+            return new PreparedRequest($key, $this->prepareHandle());
+
+        } catch (InvalidCepException | SameCepException $e) {
+            return PreparedRequest::failed($key, $e->getMessage());
         }
     }
 }

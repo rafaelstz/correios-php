@@ -3,9 +3,12 @@
 namespace Correios\Services\Price;
 
 use Correios\Exceptions\ApiRequestException;
+use Correios\Exceptions\InvalidCepException;
 use Correios\Exceptions\MissingProductParamException;
+use Correios\Exceptions\SameCepException;
 use Correios\Includes\Traits\CepHandler;
 use Correios\Includes\Product;
+use Correios\Services\Batch\PreparedRequest;
 use Correios\Services\{
     AbstractRequest,
     Authorization\Authentication
@@ -142,6 +145,29 @@ class Price extends AbstractRequest
         } catch (ApiRequestException $e) {
             $this->errors[$e->getCode()] = $e->getMessage();
             return [];
+        }
+    }
+
+    /**
+     * Build a price request ready for concurrent execution via Batch, instead
+     * of sending it immediately. Validation failures are isolated to the
+     * returned request (no exception) so one bad input never aborts a batch.
+     */
+    public function prepare(string|int $key, array $serviceCodes, array $products, string $originCep, string $destinyCep, array $fields = []): PreparedRequest
+    {
+        try {
+            $this->validateCep($originCep, $destinyCep);
+
+            $this->buildBody(
+                $serviceCodes,
+                $this->buildProductList($products),
+                $fields
+            );
+
+            return new PreparedRequest($key, $this->prepareHandle());
+
+        } catch (InvalidCepException | SameCepException | MissingProductParamException $e) {
+            return PreparedRequest::failed($key, $e->getMessage());
         }
     }
 }

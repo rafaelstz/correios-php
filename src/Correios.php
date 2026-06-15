@@ -5,6 +5,7 @@ namespace Correios;
 use Correios\Services\{
     Address\Cep,
     Authorization\Authentication,
+    Batch\Batch,
     Date\Date,
     Price\Price,
     Tracking\Tracking
@@ -69,6 +70,23 @@ class Correios
     public function authentication(): Authentication
     {
         return $this->authentication;
+    }
+
+    /**
+     * Start a bounded concurrent batch of independent requests. A fresh batch is
+     * returned each call (it accumulates requests until execute() is called).
+     */
+    public function batch(int $concurrency = 10, int $connectTimeoutMs = 5000, int $requestTimeoutMs = 30000, int $totalTimeoutMs = 0): Batch
+    {
+        return new Batch(
+            $this->authentication,
+            $this->requestNumber,
+            $this->lotId,
+            $concurrency,
+            $connectTimeoutMs,
+            $requestTimeoutMs,
+            $totalTimeoutMs,
+        );
     }
 
     private function authenticate(string $username, string $password, string $postcard, bool $isTestMode, string $token): void
